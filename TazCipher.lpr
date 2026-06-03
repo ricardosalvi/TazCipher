@@ -12,62 +12,40 @@ uses
   Base64;
 
 
-function StringToStream(const Data: String): TStream;
+function StringToStream(Data: String): TStream;
 begin
   Result := TStringStream.Create(Data, TEncoding.ANSI);
 end;
 
-function Encrypt(const Data, Key: TStream): TStream; stdcall;
+function Encrypt(Data, Key: PAnsiChar): PAnsiChar; stdcall;
 var
-  DataStream, KeyStream: TStringStream;
+  DataEncrypted: PAnsiChar;
   Cipher: TDCP_rijndael;
-  DataString, KeyString: String;
 begin
-  Data.Position := 0;
-  Key.Position := 0;
-  DataStream := TStringStream.Create('', TEncoding.ANSI);
-  KeyStream := TStringStream.Create('', TEncoding.ANSI);
   Cipher := TDCP_rijndael.Create(nil);
   try
-    DataStream.CopyFrom(Data, Data.Size);
-    KeyStream.CopyFrom(Key, Key.Size);
-    DataString := DataStream.DataString;
-    KeyString := KeyStream.DataString;
-    Cipher.InitStr(KeyString, TDCP_sha256);
-    DataString := Cipher.EncryptString(DataString);
-    Result := StringToStream(EncodeStringBase64(DataString));
+    Cipher.InitStr(Key, TDCP_sha256);
+    DataEncrypted := PAnsiChar(Cipher.EncryptString(Data));
+    Result := PAnsiChar(EncodeStringBase64(DataEncrypted));
   finally
     Cipher.Burn;
     FreeAndNil(Cipher);
-    FreeAndNil(DataStream);
-    FreeAndNil(KeyStream);
   end;
 end;
 
-function Decrypt(const Data, Key: TStream): TStream; stdcall;
+function Decrypt(Data, Key: PAnsiChar): PAnsiChar; stdcall;
 var
-  DataStream, KeyStream: TStringStream;
+  DataDecrypted: PAnsiChar;
   Cipher: TDCP_rijndael;
-  DataString, KeyString: String;
 begin
-  Data.Position := 0;
-  Key.Position := 0;
-  DataStream := TStringStream.Create('', TEncoding.ANSI);
-  KeyStream := TStringStream.Create('', TEncoding.ANSI);
   Cipher := TDCP_rijndael.Create(nil);
   try
-    DataStream.CopyFrom(Data, Data.Size);
-    KeyStream.CopyFrom(Key, Key.Size);
-    DataString := DataStream.DataString;
-    KeyString := KeyStream.DataString;
-    Cipher.InitStr(KeyString, TDCP_sha256);
-    DataString := DecodeStringBase64(DataString);
-    Result := StringToStream(Cipher.DecryptString(DataString));
+    Cipher.InitStr(Key, TDCP_sha256);
+    DataDecrypted := PAnsiChar(DecodeStringBase64(Data));
+    Result := PAnsiChar(Cipher.DecryptString(DataDecrypted));
   finally
     Cipher.Burn;
     FreeAndNil(Cipher);
-    FreeAndNil(DataStream);
-    FreeAndNil(KeyStream);
   end;
 end;
 
